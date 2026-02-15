@@ -251,11 +251,42 @@ async def cleanup_old_paid_claims():
             print(f"🗑️  Auto-deleted old paid claim #{claim['id']}")
 
 
+async def cleanup_fully_claimed_batches():
+    """
+    Auto-delete any batch where ALL cartons have been claimed.
+    Deletes the batch and all its claims (paid or unpaid).
+    """
+    batches = await supabase_request("GET", "batches", params={"select": "*"})
+    all_claims = await supabase_request("GET", "claims", params={"select": "batch_id,cartons,is_paid"})
+
+    for batch in batches:
+        batch_claims = [c for c in all_claims if c["batch_id"] == batch["id"]]
+        claimed = sum(c["cartons"] for c in batch_claims)
+        remaining = batch["total_cartons"] - claimed
+
+        # Only delete if 100% claimed AND all claims are paid
+        all_paid = all(c["is_paid"] for c in batch_claims) if batch_claims else False
+
+        if remaining <= 0 and all_paid:
+            # Delete claims first (foreign key), then the batch
+            await supabase_request(
+                "DELETE", "claims",
+                params={"batch_id": f"eq.{batch['id']}"},
+            )
+            await supabase_request(
+                "DELETE", "batches",
+                params={"id": f"eq.{batch['id']}"},
+            )
+            print(f"🗑️  Auto-deleted fully claimed & paid batch #{batch['id']}")
+
+
 @app.get("/api/dashboard")
 async def dashboard():
     """Batches + claims + remaining counts + open batch info."""
     # Clean up old paid claims first
     await cleanup_old_paid_claims()
+    # Clean up fully claimed batches
+    await cleanup_fully_claimed_batches()
 
     batches = await supabase_request("GET", "batches", params={"order": "created_at.desc"})
     claims = await supabase_request("GET", "claims", params={"order": "created_at.desc"})
