@@ -1,0 +1,6 @@
+# .replit — tells Replit how to run your app
+# The "Run" button will execute this command:
+run = "uvicorn main:app --host 0.0.0.0 --port 8080 --reload"
+
+[nix]
+channel = "stable-24_05"
