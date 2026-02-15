@@ -70,6 +70,9 @@ async def supabase_request(method, table, params=None, json_body=None):
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code,
                             detail=response.text)
+    # DELETE returns empty body — handle gracefully
+    if method == "DELETE" or not response.text:
+        return []
     return response.json()
 
 # ──────────────────────────────────────────────
@@ -192,19 +195,68 @@ async def create_claim(body: ClaimCreate):
 
 @app.patch("/api/claims/{claim_id}/pay")
 async def mark_paid(claim_id: int):
-    result = await supabase_request(
-        "PATCH", "claims",
-        params={"id": f"eq.{claim_id}"},
-        json_body={"is_paid": True},
+    """Mark a claim as paid. If it's older than 1 day, auto-delete it."""
+    # First, get the claim to check its date
+    claim_list = await supabase_request(
+        "GET", "claims",
+        params={"id": f"eq.{claim_id}", "select": "*"},
     )
-    if not result:
+    if not claim_list:
         raise HTTPException(404, detail="Claim not found")
-    return result
+
+    claim = claim_list[0]
+    claim_date = datetime.fromisoformat(claim["created_at"].replace("Z", "+00:00"))
+    age = datetime.now(timezone.utc) - claim_date
+
+    if age.days >= 1:
+        # Older than 1 day → mark paid then delete
+        await supabase_request(
+            "DELETE", "claims",
+            params={"id": f"eq.{claim_id}"},
+        )
+        return {"deleted": True, "message": f"Claim #{claim_id} was paid and auto-removed (older than 1 day)."}
+    else:
+        # Less than 1 day old → just mark paid, keep it visible
+        result = await supabase_request(
+            "PATCH", "claims",
+            params={"id": f"eq.{claim_id}"},
+            json_body={"is_paid": True},
+        )
+        return result
+
+
+# ──────────────────────────────────────────────
+# HELPER: Clean up old paid claims (runs on every dashboard load)
+# ──────────────────────────────────────────────
+
+async def cleanup_old_paid_claims():
+    """
+    Auto-delete any claims that are BOTH:
+      - is_paid = true
+      - older than 1 day
+    This keeps the dashboard clean automatically.
+    """
+    paid_claims = await supabase_request(
+        "GET", "claims",
+        params={"is_paid": "eq.true", "select": "id,created_at"},
+    )
+    now = datetime.now(timezone.utc)
+    for claim in paid_claims:
+        claim_date = datetime.fromisoformat(claim["created_at"].replace("Z", "+00:00"))
+        if (now - claim_date).days >= 1:
+            await supabase_request(
+                "DELETE", "claims",
+                params={"id": f"eq.{claim['id']}"},
+            )
+            print(f"🗑️  Auto-deleted old paid claim #{claim['id']}")
 
 
 @app.get("/api/dashboard")
 async def dashboard():
     """Batches + claims + remaining counts + open batch info."""
+    # Clean up old paid claims first
+    await cleanup_old_paid_claims()
+
     batches = await supabase_request("GET", "batches", params={"order": "created_at.desc"})
     claims = await supabase_request("GET", "claims", params={"order": "created_at.desc"})
 
