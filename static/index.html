@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🥚 Egg Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #faf8f4;
+      --surface:   #ffffff;
+      --border:    #e2ded6;
+      --text:      #2c2416;
+      --text-muted:#8a7f6e;
+      --accent:    #d97a1f;
+      --accent-bg: #fef3e2;
+      --green:     #3a8a4a;
+      --green-bg:  #e8f5ea;
+      --red:       #c0392b;
+      --red-bg:    #fde8e5;
+      --radius:    8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 4px; }
+    .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 32px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      background: var(--bg);
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-bg);
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row > div { flex: 1; }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button:active { opacity: 0.7; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.secondary {
+      background: var(--green);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--border);
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge.paid   { background: var(--green-bg); color: var(--green); }
+    .badge.unpaid { background: var(--red-bg);   color: var(--red);   }
+    .badge.open   { background: var(--green-bg); color: var(--green); }
+    .badge.empty  { background: var(--red-bg);   color: var(--red);   }
+    .status {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .status.success { display: block; background: var(--green-bg); color: var(--green); }
+    .status.error   { display: block; background: var(--red-bg);   color: var(--red);   }
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 24px;
+      font-style: italic;
+    }
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-weight: 500;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+    /* Info banner showing current open batch */
+    .batch-info {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .batch-info strong { color: var(--accent); }
+    .no-batch-info {
+      background: var(--red-bg);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      color: var(--red);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🥚 Egg Tracker</h1>
+  <p class="subtitle">Log batches, claim cartons, track payments.</p>
+
+  <!-- ════════════════════════════════════════════ -->
+  <!-- FORM: Add a New Egg Batch (Anthony only)     -->
+  <!-- ════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>Add New Batch (Anthony)</h2>
+    <div id="batch-status" class="status"></div>
+    <div class="form-row">
+      <div>
+        <label>Added By</label>
+        <input type="text" value="Anthony" disabled
+               style="background: var(--border); font-weight: 600;" />
+      </div>
+      <div>
+        <label for="total_cartons">Total Cartons</label>
+        <input id="total_cartons" type="number" min="1" placeholder="e.g. 12" />
+      </div>
+    </div>
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" placeholder="e.g. Brown eggs from local farm"></textarea>
+    <button onclick="addBatch()">Add Batch</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════ -->
+  <!-- DASHBOARD: Batches Table (ABOVE claims)      -->
+  <!-- ════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>
+      Batches
+      <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    </h2>
+    <div id="batches-table"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ -->
+  <!-- FORM: Claim Eggs (auto-picks open batch)     -->
+  <!-- ════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>Claim Eggs</h2>
+    <div id="open-batch-info"></div>
+    <div id="claim-status" class="status"></div>
+
+    <div class="form-row">
+      <div>
+        <label for="claimed_by">Your Name</label>
+        <input id="claimed_by" type="text" placeholder="e.g. James" />
+      </div>
+      <div>
+        <label for="cartons">Cartons</label>
+        <input id="cartons" type="number" min="1" placeholder="e.g. 2" />
+      </div>
+    </div>
+    <button id="claim-btn" onclick="claimEggs()">Claim Cartons</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════ -->
+  <!-- DASHBOARD: Claims Table                      -->
+  <!-- ════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>Claims</h2>
+    <div id="claims-table"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ -->
+  <!-- JAVASCRIPT                                    -->
+  <!-- ════════════════════════════════════════════ -->
+  <script>
+    const API_BASE = "";
+
+    // ── Flash message helper ──
+    function showStatus(elementId, message, isError = false) {
+      const el = document.getElementById(elementId);
+      el.textContent = message;
+      el.className = "status " + (isError ? "error" : "success");
+      setTimeout(() => { el.className = "status"; }, 4000);
+    }
+
+    // ── Format date ──
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    // ════════════════════════════════════════════
+    // ADD BATCH (always Anthony)
+    // ════════════════════════════════════════════
+    async function addBatch() {
+      const total_cartons = parseInt(document.getElementById("total_cartons").value);
+      const notes = document.getElementById("notes").value.trim();
+
+      if (!total_cartons || total_cartons < 1) {
+        showStatus("batch-status", "Please enter a valid carton count.", true);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + "/api/batches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ total_cartons, notes }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        showStatus("batch-status", "✅ Batch added! Team notified via Google Chat.");
+        document.getElementById("total_cartons").value = "";
+        document.getElementById("notes").value = "";
+        loadDashboard();
+      } catch (err) {
+        showStatus("batch-status", "❌ Error: " + err.message, true);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // CLAIM EGGS (auto-picks open batch)
+    // ════════════════════════════════════════════
+    async function claimEggs() {
+      const claimed_by = document.getElementById("claimed_by").value.trim();
+      const cartons = parseInt(document.getElementById("cartons").value);
+
+      if (!claimed_by || !cartons || cartons < 1) {
+        showStatus("claim-status", "Please fill in your name and a valid carton count.", true);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + "/api/claims", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ claimed_by, cartons }),
+        });
+
+        if (!res.ok) {
+          // Show the server's specific error (e.g. "Only 3 cartons left...")
+          const errData = await res.json();
+          throw new Error(errData.detail || "Request failed");
+        }
+
+        showStatus("claim-status", "✅ Claim recorded!");
+        document.getElementById("claimed_by").value = "";
+        document.getElementById("cartons").value = "";
+        loadDashboard();
+      } catch (err) {
+        showStatus("claim-status", "❌ " + err.message, true);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // MARK CLAIM AS PAID
+    // ════════════════════════════════════════════
+    async function markPaid(claimId) {
+      try {
+        const res = await fetch(API_BASE + `/api/claims/${claimId}/pay`, {
+          method: "PATCH",
+        });
+        if (!res.ok) throw new Error(await res.text());
+        loadDashboard();
+      } catch (err) {
+        alert("Error marking paid: " + err.message);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // LOAD DASHBOARD
+    // ════════════════════════════════════════════
+    async function loadDashboard() {
+      try {
+        const res = await fetch(API_BASE + "/api/dashboard");
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+
+        // ── Show open batch info in the Claim section ──
+        const infoEl = document.getElementById("open-batch-info");
+        const claimBtn = document.getElementById("claim-btn");
+
+        if (data.open_batch) {
+          infoEl.className = "batch-info";
+          infoEl.innerHTML =
+            `Auto-claiming from <strong>Batch #${data.open_batch.id}</strong> ` +
+            `(by ${data.open_batch.added_by}) — ` +
+            `<strong>${data.open_remaining} carton(s) remaining</strong>`;
+          claimBtn.disabled = false;
+        } else {
+          infoEl.className = "no-batch-info";
+          infoEl.innerHTML = "No open batches — all cartons have been claimed. Ask Anthony to add more!";
+          claimBtn.disabled = true;
+        }
+
+        // ── Render Batches Table ──
+        if (data.batches.length === 0) {
+          document.getElementById("batches-table").innerHTML =
+            '<p class="empty-state">No batches yet. Anthony, add one above!</p>';
+        } else {
+          let html = `<table>
+            <thead><tr>
+              <th>ID</th><th>Added By</th><th>Total</th>
+              <th>Remaining</th><th>Status</th><th>Notes</th><th>Date</th>
+            </tr></thead><tbody>`;
+          for (const b of data.batches) {
+            const statusBadge = b.remaining > 0
+              ? `<span class="badge open">${b.remaining} left</span>`
+              : '<span class="badge empty">All claimed</span>';
+            html += `<tr>
+              <td>${b.id}</td>
+              <td>${b.added_by}</td>
+              <td>${b.total_cartons}</td>
+              <td>${b.remaining}</td>
+              <td>${statusBadge}</td>
+              <td>${b.notes || "—"}</td>
+              <td>${fmtDate(b.created_at)}</td>
+            </tr>`;
+          }
+          html += "</tbody></table>";
+          document.getElementById("batches-table").innerHTML = html;
+        }
+
+        // ── Render Claims Table ──
+        if (data.claims.length === 0) {
+          document.getElementById("claims-table").innerHTML =
+            '<p class="empty-state">No claims yet.</p>';
+        } else {
+          let html = `<table>
+            <thead><tr>
+              <th>ID</th><th>Batch</th><th>Claimed By</th>
+              <th>Cartons</th><th>Status</th><th>Date</th><th></th>
+            </tr></thead><tbody>`;
+          for (const c of data.claims) {
+            const badge = c.is_paid
+              ? '<span class="badge paid">Paid</span>'
+              : '<span class="badge unpaid">Unpaid</span>';
+            const btn = c.is_paid
+              ? ""
+              : `<button class="secondary" onclick="markPaid(${c.id})">Mark Paid</button>`;
+            html += `<tr>
+              <td>${c.id}</td>
+              <td>#${c.batch_id}</td>
+              <td>${c.claimed_by}</td>
+              <td>${c.cartons}</td>
+              <td>${badge}</td>
+              <td>${fmtDate(c.created_at)}</td>
+              <td>${btn}</td>
+            </tr>`;
+          }
+          html += "</tbody></table>";
+          document.getElementById("claims-table").innerHTML = html;
+        }
+      } catch (err) {
+        console.error("Dashboard load failed:", err);
+      }
+    }
+
+    // ── Load on first open ──
+    loadDashboard();
+  </script>
+
+</body>
+</html>
